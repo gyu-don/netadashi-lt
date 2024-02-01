@@ -1,0 +1,30 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "Add your description here"
+authors = [
+    { name = "gyu-don", email = "takumi.kt@gmail.com" }
+]
+dependencies = [
+    "flask>=3.0.1",
+    "dwave-ocean-sdk>=6.8.0",
+    "flask-cors>=4.0.0",
+]
+readme = "README.md"
+requires-python = ">= 3.8"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.rye]
+managed = true
+dev-dependencies = [
+    "ruff>=0.1.13",
+    "black>=23.12.1",
+    "pytest>=7.4.4",
+    "pyright>=1.1.347",
+]
+
+[tool.hatch.metadata]
+allow-direct-references = true
