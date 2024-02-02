@@ -18,16 +18,27 @@ interface ResponseData {
 
 const max_time: number = 15;
 
-export default class App extends React.Component<{}, { responseData: ResponseData | null }> {
+export default class App extends React.Component<{}, { responseData: ResponseData | null, reservationData: ReservationData[] }> {
   constructor(props: {}) {
     super(props);
+    const reservationData: ReservationData[] = Array.from({ length: 10 }, (_, index) => {
+      const start = Math.floor(Math.random() * 10) + 1;
+      const end = start + Math.floor(Math.random() * 3) + 1;
+      return {
+        name: `予約${index + 1}`,
+        start,
+        end
+      }
+    });
     this.state = {
-      responseData: null
+      responseData: null,
+      reservationData,
     };
   }
 
   async handleCalcClick(reservations: ReservationData[]): Promise<void> {
     try {
+      console.log(reservations)
       const response = await fetch('http://127.0.0.1:5000/solve', {
         method: 'POST',
         headers: {
@@ -41,6 +52,7 @@ export default class App extends React.Component<{}, { responseData: ResponseDat
       }
 
       const data: ResponseData = await response.json();
+      console.log(data);
       this.setState({ responseData: data });
     } catch (error) {
       console.error('Error:', error);
@@ -51,24 +63,20 @@ export default class App extends React.Component<{}, { responseData: ResponseDat
   render() {
     const { responseData } = this.state;
     const reservations = Array.from({ length: 10 }, (_, index) => {
-      const start = Math.floor(Math.random() * 10) + 1;
-      const end = start + Math.floor(Math.random() * 3) + 1;
       return (
-        {
-            name: `予約${index + 1}`,
-            start,
-            end
-        }
+        <Reservation key={index} defaultFormData={this.state.reservationData[index]} handleUpdateFormData={(reservation: ReservationData) => {
+          const {responseData, reservationData} = this.state;
+          reservationData[index] = reservation;
+          this.setState({responseData, reservationData});
+        }} />
       );
     });
 
     return (
       <div>
       <Form>
-        {reservations.map((reservation, index) => (
-          <Reservation key={index} defaultFormData={reservation} />
-        ))}
-        <Button variant="primary" onClick={() => this.handleCalcClick(reservations)}>計算</Button>
+        {reservations}
+        <Button variant="primary" onClick={() => this.handleCalcClick(reservations.map((reservation) => {return reservation.props.defaultFormData}))}>計算</Button>
       </Form>
       {responseData && (
         <div>
@@ -89,7 +97,7 @@ export default class App extends React.Component<{}, { responseData: ResponseDat
                     let schedule = [...Array(max_time).keys()].map(index => "");
                     for (const reservation of roomReservations) {
                       for (let t = reservation.start; t < reservation.end; t++) {
-                        schedule[t - 1] = reservation.name;
+                        schedule[t - 1] += reservation.name;
                       }
                     }
                     return schedule;

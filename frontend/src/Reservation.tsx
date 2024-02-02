@@ -9,9 +9,10 @@ export interface ReservationData {
 
 export interface ReservationProps {
     defaultFormData: ReservationData;
+    handleUpdateFormData: (reservation: ReservationData) => void;
   }
   
-export const Reservation: React.FC<ReservationProps> = ({ defaultFormData }) => {
+export const Reservation: React.FC<ReservationProps> = ({ defaultFormData, handleUpdateFormData }) => {
   const [formData, setFormData] = useState<ReservationData>(defaultFormData);
 
   const handleChange = (event: ChangeEvent<HTMLInputElement>): void => {
@@ -20,6 +21,11 @@ export const Reservation: React.FC<ReservationProps> = ({ defaultFormData }) => 
       ...formData,
       [name]: name === 'name' ? value : parseInt(value, 10)
     });
+    handleUpdateFormData({
+      ...formData,
+      [name]: name === 'name' ? value : parseInt(value, 10)
+    });
+    
   };
 
   return (
