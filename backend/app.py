@@ -79,6 +79,6 @@ def solve() -> Response:
     reservations = cast(list[Reservation], request.get_json())
     bqm = make_bqm(reservations, n_rooms, 10.0)
     sa = neal.SimulatedAnnealingSampler()
-    best = sa.sample(bqm, num_reads=10).first
+    best = sa.sample(bqm, num_reads=50).first
     decoded = decode(reservations, n_rooms, best)
     return jsonify(decoded)
