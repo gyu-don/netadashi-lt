@@ -1,87 +1,84 @@
-from typing import cast, TypedDict
-from flask import Flask, Response, request, jsonify
-import neal
+"""Graph coloring problem solver for conference room reservation system."""
+from __future__ import annotations
+
+from typing import Any, TypedDict, cast
+
 import dimod
+import neal
+from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
 
+
 class Reservation(TypedDict):
+    """Type of request JSON."""
+
     name: str
     start: int
     end: int
 
 
 class ResultJson(TypedDict):
+    """Type of response JSON."""
+
     result: list[list[Reservation]]
     check_constr: bool
     energy: float
 
 
-def decode(reservations: list[Reservation], solution) -> ResultJson:
-    bits = solution.sample
+def decode(reservations: list[Reservation], n_rooms: int, solution: Any) -> ResultJson:  # noqa: ANN401
+    """Decode a result."""
+    sample = solution.sample
     result = [[] for _ in range(4)]
     check_constr = True
     for i, r in enumerate(reservations):
-        ci, mi, yi, ki = f"C{i}", f"M{i}", f"Y{i}", f"K{i}"
-        bits_sum = bits[ci] + bits[mi] + bits[yi] + bits[ki]
-        print(bits[ci], bits[mi], bits[yi], bits[ki])
-        if bits_sum == 0:
+        ones = [k for k in range(n_rooms) if sample[f"{k}|{i}"]]
+        len_ones = len(ones)
+        if len_ones != 1:
             check_constr = False
+        if len_ones == 0:
             result[i % 4].append(r)
-            continue
-        if bits_sum != 1:
-            check_constr = False
-        if bits[ci]:
-            result[0].append(r)
-        elif bits[mi]:
-            result[1].append(r)
-        elif bits[yi]:
-            result[2].append(r)
         else:
-            result[3].append(r)
+            result[ones[i % len_ones]].append(r)
     return {"result": result, "check_constr": check_constr, "energy": solution.energy}
 
 
-def make_qubo(reservations: list[Reservation], param_constr: float) -> tuple[dict[tuple[str, str], float], dict[str, float], float]:
+def make_bqm(reservations: list[Reservation], n_rooms: int, param_constr: float) -> dimod.BinaryQuadraticModel:
+    """Make a BQM."""
     # constraints
     quad = {}
-    linear = {f"{c}{i}": -param_constr for c in "CMYK" for i in range(len(reservations))}
+    linear = {f"{k}|{i}": -param_constr for k in range(n_rooms) for i in range(len(reservations))}
     offset = param_constr * len(reservations)
     for i in range(len(reservations)):
-        quad[f"C{i}", f"M{i}"] = 2 * param_constr
-        quad[f"C{i}", f"Y{i}"] = 2 * param_constr
-        quad[f"C{i}", f"K{i}"] = 2 * param_constr
-        quad[f"M{i}", f"Y{i}"] = 2 * param_constr
-        quad[f"M{i}", f"K{i}"] = 2 * param_constr
-        quad[f"Y{i}", f"K{i}"] = 2 * param_constr
+        for j in range(n_rooms):
+            for k in range(j + 1, n_rooms):
+                quad[f"{j}|{i}", f"{k}|{i}"] = 2 * param_constr
     # objective
     for i in range(len(reservations)):
         for j in range(i + 1, len(reservations)):
             ri = reservations[i]
             rj = reservations[j]
             if min(ri["end"], rj["end"]) > max(ri["start"], rj["start"]):
-                quad[f"C{i}", f"C{j}"] = 1.0
-                quad[f"M{i}", f"M{j}"] = 1.0
-                quad[f"Y{i}", f"Y{j}"] = 1.0
-                quad[f"K{i}", f"K{j}"] = 1.0
-    return quad, linear, offset
+                for k in range(n_rooms):
+                    quad[f"{k}|{i}", f"{k}|{j}"] = 1.0
+    return dimod.BinaryQuadraticModel(linear, quad, offset, "BINARY")
 
 
-@app.route("/hello/<name>")
-def hello(name):
-    """hello returns plain text"""
-    return "hello " + name
+@app.route("/hello")
+def hello() -> str:
+    """Hello returns plain text."""
+    return "hello"
+
 
 @app.route("/solve", methods=["POST"])
 def solve() -> Response:
+    """Solve the problem."""
+    n_rooms = 4
     reservations = cast(list[Reservation], request.get_json())
-    #print(reservations)
-    quad, linear, offset = make_qubo(reservations, 10.0)
-    bqm = dimod.BinaryQuadraticModel(linear, quad, offset, "BINARY")
+    bqm = make_bqm(reservations, n_rooms, 10.0)
     sa = neal.SimulatedAnnealingSampler()
     best = sa.sample(bqm, num_reads=10).first
-    decoded = decode(reservations, best)
-    #print(decoded)
+    decoded = decode(reservations, n_rooms, best)
     return jsonify(decoded)
