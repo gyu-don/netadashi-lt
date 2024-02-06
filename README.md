@@ -1,5 +1,7 @@
 「Netadashi Meetup #12 フロントエンド初心者がサクッとReactに入門する」で発表するためのネタです。
 
+スライドはこちら https://speakerdeck.com/gyudon/hurontoendochu-xin-zhe-gasakututoreactniru-men-suru
+
 以下は、ChatGPTによる解説。
 
 # グラフ彩色問題とは
